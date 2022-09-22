@@ -1,0 +1,178 @@
+################DISCRIMINANT ANALYSIS - ERROR TEST - LOOP#######################33
+
+## Data
+dados=read.table("Componentes_suscet.txt", header=TRUE)
+dados=as.data.frame(cbind(dados))
+head(dados)
+X = as.matrix(dados[1:8])
+X
+Status = as.matrix(dados[9])
+Status
+
+# Summary
+
+summary(dados)
+
+
+str(dados)
+
+####################################
+#       DISCRIMINANT ANALYSIS      #
+####################################
+
+library(MASS)
+library(klaR)
+library(mda)
+
+
+#normality test
+#H0: data are normal
+#H1: data are not normal 
+library(royston)
+royston.test(X)
+
+
+
+#Homocedasticity test
+
+# H0: covariance matrices are homogeneous 
+
+library(biotools)
+
+boxM(X,Status)
+
+# p-value = 0: covariance matrices are not homogeneous 
+
+
+########################Loop seeds###################
+# create a list to receive the predictions and values
+dadosfLDA = list()
+erro = numeric()
+AUC = numeric()
+erro22 = numeric()
+AUC22 = numeric()
+
+###loop
+
+for(i in 100:130){
+  set.seed(i)  
+
+set.seed(i) #fix seed i
+
+nT = dim(dados)[1]
+nT
+
+p=0.75
+
+trind = sample(1:nT,floor(p*nT),FALSE)
+trind
+
+
+Xtreino = X[trind,]
+Xtreino
+
+
+Ytreino = Status[trind]
+Ytreino
+
+
+
+teind = setdiff(1:nT,trind)
+teind
+
+
+Xteste = X[teind,]
+Xteste
+
+Yteste = Status[teind]
+Yteste
+
+##discriminant analysis to the seed i
+
+dadosfLDA[[i]] <- lda(Xtreino, Ytreino)
+dadosfLDA[[i]]
+
+## error test
+b = predict(dadosfLDA[[i]],Xteste)
+b
+c=b$class
+c
+
+library(ks)
+tab = compare(c,Yteste)
+tab
+
+erro[i] = tab$error
+
+erro[i]
+
+## error train
+
+b22 = predict(dadosfLDA[[i]],Xtreino)
+b22
+c22=b22$class
+c22
+
+library(ks)
+tab22 = compare(c22,Ytreino)
+tab22
+
+erro22[i] = tab22$error
+
+erro22[i]
+
+library(multiROC)
+library(pROC)
+
+##AUC - ROC curve test
+ROC_AUC <- multiclass.roc(as.numeric(Yteste), as.numeric(c), direction = "<")
+AUC[i] <- ROC_AUC$auc
+AUC[i]
+
+##AUC - ROC curve train
+ROC_AUC22 <- multiclass.roc(as.numeric(Ytreino), as.numeric(c22), direction = "<")
+AUC22[i] <- ROC_AUC22$auc
+AUC22[i]
+
+}
+
+
+# error graph of the test samples
+op <- par(mar = c(5, 3, 4, 1))
+plot(erro, xlim=c(100,130),ylim=c(0,0.5), type="b", col="blue", cex=1, pch=1,
+     xlab="i", ylab="Acuracia",
+     main="Error in each sample i")
+
+# error graph of the train samples
+op <- par(new = TRUE)
+plot(erro22, xlim=c(100,130),ylim=c(0,0.5), type="b", col="red", cex=1, pch=1,
+     xlab="i", ylab="Erro",
+     main="Error in each sample i")
+
+###average error - test sample
+erros=erro[100:130]
+erros
+
+erro_medio = mean(erros)
+
+erro_medio
+
+###average error - train sample
+erros2=erro22[100:130]
+erros2
+
+erro_medio2 = mean(erros2)
+
+erro_medio2
+
+AUC=AUC[100:130]
+
+###average AUC
+AUC
+AUC_media = mean(AUC)
+AUC_media
+
+AUC22=AUC22[100:130]
+AUC22
+AUC22_media = mean(AUC22)
+AUC22_media 
